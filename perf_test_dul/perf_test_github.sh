@@ -1,17 +1,14 @@
 #!/bin/bash
 
-# Be sure to have an empty repo (container=reponame) created
-# with swift-init-repo.py before starting this script
-
-# swift -A http://localhost:8080/auth/v1.0 -U 'test:tester' -K testing delete swiftsync
-# DULWICH_SWIFT_CFG=../dulv1.conf PYTHONPATH=../dulwich python swift-init-repo.py edeploy
+# Be sure to have an empty repo (github_projet=reponame_dul) created
 
 set -x
 
 # Reponame and project archive name with suffix
 reponame=swift
-# Dulwich Git repository. We'll bench it 
-dul_repo_url=git://127.0.0.1/$reponame
+reponamedul=${reponame}_dul.git
+# Github Git repository. We'll bench it
+github_repo_url=git@github.com:morucci/$reponamedul
 
 function add_files() {
     local dir=`mktemp -d -p .`
@@ -36,7 +33,7 @@ function generate_commits() {
     git commit -a -m"Change Copyrights"
 }
 
-# Push the base repo on Swift via Dulwich
+# Push the base repo on github
 rm -Rf /tmp/base
 mkdir -p /tmp/base
 cp ${reponame}.tgz /tmp/base
@@ -44,10 +41,11 @@ cd /tmp/base
 tar -xzf ${reponame}.tgz
 git clone $reponame clone${reponame}
 cd clone${reponame}
-git remote add alt $dul_repo_url
-git push alt master
+git remote add alt $github_repo_url
+echo -e "\nInitial push $reponame"
+/usr/bin/time -f 'Initial push took %e seconds' git push alt master
 
-# Clone the Repo from swift
+# Clone the Repo from github
 mkdir -p /tmp/perf_test
 cd /tmp/perf_test
 rm -Rf $reponame
@@ -55,7 +53,7 @@ rm -Rf clone$reponame
 
 echo -e "\nStart cloning $reponame"
 /usr/bin/time -f 'Cloning took %e seconds' \
-    git clone -b master $dul_repo_url > /dev/null
+    git clone -b master $github_repo_url $reponame > /dev/null
 
 # Copy the original clone
 cp -Rf $reponame clone$reponame

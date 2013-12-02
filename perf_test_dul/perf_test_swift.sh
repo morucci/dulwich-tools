@@ -1,13 +1,15 @@
 #!/bin/bash
 
+# Be sure to have an empty repo (container=reponame) created
+# with swift-init-repo.py before starting this script
+
+# swift -A http://localhost:8080/auth/v1.0 -U 'test:tester' -K testing delete swiftsync
+# DULWICH_SWIFT_CFG=../dulv1.conf PYTHONPATH=../dulwich python swift-init-repo.py edeploy
+
 set -x
 
 # Reponame and project archive name with suffix
 reponame=swift
-# Token to authenticate on Swift
-token=5a13cc2f0b4d4712ab0b8c636d285bf2
-# The Swift storage URL
-storage_url=https://snet-storage101.lon3.clouddrive.com/v1/MossoCloudFS_532c9f86-3240-4ff5-b3f0-033ece4debd2
 # Dulwich Git repository. We'll bench it 
 dul_repo_url=git://127.0.0.1/$reponame
 
@@ -34,14 +36,16 @@ function generate_commits() {
     git commit -a -m"Change Copyrights"
 }
 
-# Initialise a base repo
-echo "Remove previous repo in Swift"
-swift --os-auth-token=$token \
-      --os-storage-url=$storage_url delete $reponame
-echo "Import bare $reponame in Swift using bulk middleware"
-curl -XPUT -H"X-Auth-Token: $token" \
-    "$storage_url/?extract-archive=tar.gz" \
-    --data-binary @${reponame}.tgz 
+# Push the base repo on Swift via Dulwich
+rm -Rf /tmp/base
+mkdir -p /tmp/base
+cp ${reponame}.tgz /tmp/base
+cd /tmp/base
+tar -xzf ${reponame}.tgz
+git clone $reponame clone${reponame}
+cd clone${reponame}
+git remote add alt $dul_repo_url
+git push alt master
 
 # Clone the Repo from swift
 mkdir -p /tmp/perf_test
